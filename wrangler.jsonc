@@ -10,5 +10,11 @@
                              "database_id":  "fd92caf1-ec53-4734-b0e5-87e6241f3df4",
                              "remote":  true
                          }
-                     ]
+                     ],
+    "r2_buckets":  [
+                       {
+                           "binding":  "MEDIA",
+                           "bucket_name":  "jeebo-media"
+                       }
+                   ]
 }
