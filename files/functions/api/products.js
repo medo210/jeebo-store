@@ -1,0 +1,2 @@
+const p=(v,f)=>{try{const a=JSON.parse(v||"[]");return Array.isArray(a)&&a.length?a:f?[f]:[]}catch{return f?[f]:[]}};
+export async function onRequestGet({env}){try{const {results}=await env.jeebo_db.prepare("SELECT id,name,slug,description,category,price,old_price,badge,image,images,sort_order FROM products WHERE status=1 ORDER BY sort_order ASC,id DESC").all();return Response.json(results.map(x=>({...x,images:p(x.images,x.image)})),{headers:{"Cache-Control":"public,max-age=60"}})}catch(e){return Response.json({error:"Database Error"},{status:500})}}

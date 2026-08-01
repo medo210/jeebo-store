@@ -1,0 +1,23 @@
+import {useState} from "react";
+import {useMutation,useQuery,useQueryClient} from "@tanstack/react-query";
+import {createProduct,deleteProduct,getAdminProducts,updateProduct,uploadMedia} from "../../api/admin";
+import {ErrorBox,LoadingBox,Modal,PageHeader} from "../../components/admin/AdminUI";
+const empty={name:"",slug:"",description:"",price:"",oldPrice:"",badge:"",images:[],status:true,sortOrder:0};
+export default function Products(){
+ const qc=useQueryClient(),[edit,setEdit]=useState(null),[form,setForm]=useState(empty),[uploading,setUploading]=useState(false);
+ const q=useQuery({queryKey:["admin-products"],queryFn:getAdminProducts});
+ const save=useMutation({mutationFn:p=>edit?.id?updateProduct(edit.id,p):createProduct(p),onSuccess:async()=>{await qc.invalidateQueries({queryKey:["admin-products"]});await qc.invalidateQueries({queryKey:["products"]});setEdit(null);setForm(empty)}});
+ const del=useMutation({mutationFn:deleteProduct,onSuccess:()=>qc.invalidateQueries({queryKey:["admin-products"]})});
+ const open=p=>{setEdit(p||{});setForm(p?{name:p.name,slug:p.slug,description:p.description,price:p.price,oldPrice:p.old_price,badge:p.badge||"",images:p.images?.length?p.images:(p.image?[p.image]:[]),status:!!p.status,sortOrder:p.sort_order||0}:empty)};
+ const upload=async e=>{setUploading(true);try{const urls=[];for(const f of [...e.target.files].slice(0,12-form.images.length)){urls.push((await uploadMedia(f)).url)}setForm({...form,images:[...form.images,...urls]})}finally{setUploading(false);e.target.value=""}};
+ if(q.isLoading)return <LoadingBox/>;if(q.isError)return <ErrorBox message={q.error.message}/>;
+ return <div><PageHeader title="إدارة المنتجات" description={`${q.data.products.length} منتج`} action={<button onClick={()=>open()} className="rounded-xl bg-zinc-950 px-5 py-3 font-black text-white">إضافة منتج</button>}/>
+ <div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[850px] text-right text-sm"><thead className="bg-zinc-50"><tr><th className="p-4">الصورة</th><th className="p-4">المنتج</th><th className="p-4">الرابط</th><th className="p-4">السعر</th><th className="p-4">الحالة</th><th className="p-4">إجراء</th></tr></thead><tbody>{q.data.products.map(p=><tr className="border-t" key={p.id}><td className="p-4"><img src={p.image} className="h-14 w-14 rounded-xl object-cover"/></td><td className="p-4 font-black">{p.name}</td><td className="p-4">{p.slug}</td><td className="p-4">{p.price} جنيه</td><td className="p-4">{p.status?"مفعل":"متوقف"}</td><td className="p-4"><button onClick={()=>open(p)} className="ml-2 rounded-lg border px-3 py-2">تعديل</button><button onClick={()=>confirm("حذف المنتج؟")&&del.mutate(p.id)} className="rounded-lg border border-red-300 px-3 py-2 text-red-700">حذف</button></td></tr>)}</tbody></table></div>
+ <Modal open={edit!==null} onClose={()=>setEdit(null)} title={edit?.id?"تعديل المنتج":"إضافة منتج"} width="max-w-4xl"><form onSubmit={e=>{e.preventDefault();save.mutate(form)}} className="grid gap-4 sm:grid-cols-2">
+ {[["name","اسم المنتج","text"],["slug","الرابط بالإنجليزية","text"],["price","السعر","number"],["oldPrice","السعر القديم","number"],["badge","الشارة","text"],["sortOrder","الترتيب","number"]].map(([n,l,t])=><label key={n} className="grid gap-2"><b>{l}</b><input type={t} value={form[n]} onChange={e=>setForm({...form,[n]:e.target.value})} className="h-12 rounded-xl border px-4"/></label>)}
+ <label className="grid gap-2 sm:col-span-2"><b>الوصف</b><textarea rows="4" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} className="rounded-xl border p-4"/></label>
+ <div className="sm:col-span-2"><label className="block cursor-pointer rounded-xl border-2 border-dashed p-5 text-center font-black">{uploading?"جاري الرفع...":"اختار صور من الجهاز"}<input type="file" multiple accept="image/*" onChange={upload} className="hidden"/></label><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{form.images.map((u,i)=><div className="relative aspect-square" key={u}><img src={u} className="h-full w-full rounded-xl object-cover"/><button type="button" onClick={()=>setForm({...form,images:form.images.filter((_,x)=>x!==i)})} className="absolute left-2 top-2 rounded-full bg-black px-2 py-1 text-white">×</button></div>)}</div></div>
+ <label className="flex gap-3 rounded-xl bg-zinc-100 p-4 sm:col-span-2"><input type="checkbox" checked={form.status} onChange={e=>setForm({...form,status:e.target.checked})}/><b>المنتج مفعل</b></label>
+ <button disabled={save.isPending||uploading} className="rounded-xl bg-zinc-950 p-4 font-black text-white sm:col-span-2">حفظ المنتج</button>
+ </form></Modal></div>;
+}
