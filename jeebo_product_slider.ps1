@@ -1,4 +1,20 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
+
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host " Jeebo Product Slider Upgrade" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+
+$target = ".\src\components\product\ProductGallery.jsx"
+
+if (-not (Test-Path $target)) {
+  throw "ProductGallery.jsx not found. Put this file inside jeebo-store."
+}
+
+Copy-Item $target "$target.before-slider.bak" -Force
+
+@'
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -320,3 +336,37 @@ export default function ProductGallery({ product }) {
     </>
   );
 }
+'@ | Set-Content -Encoding utf8 $target
+
+Write-Host "Building..." -ForegroundColor Yellow
+npm run build
+
+if ($LASTEXITCODE -ne 0) {
+  throw "Build failed."
+}
+
+Write-Host "Saving to Git..." -ForegroundColor Yellow
+git add .
+
+try {
+  git commit -m "Add swipe product image slider"
+} catch {
+  Write-Host "No new commit or Git warning." -ForegroundColor DarkYellow
+}
+
+try {
+  git push origin main
+} catch {
+  Write-Host "Git push warning; continuing." -ForegroundColor DarkYellow
+}
+
+Write-Host "Deploying..." -ForegroundColor Yellow
+npx wrangler pages deploy dist --project-name jeebo-store --branch main
+
+if ($LASTEXITCODE -ne 0) {
+  throw "Deploy failed."
+}
+
+Write-Host ""
+Write-Host "Product slider deployed successfully." -ForegroundColor Green
+Write-Host "Open: https://jeebo-store.pages.dev" -ForegroundColor Cyan
