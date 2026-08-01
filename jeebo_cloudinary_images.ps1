@@ -1,4 +1,20 @@
-﻿import { useMemo, useRef, useState } from "react";
+﻿$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
+
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host " Jeebo Cloudinary Images Upgrade" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+
+$productsFile = ".\src\pages\admin\Products.jsx"
+
+if (-not (Test-Path $productsFile)) {
+  throw "Products.jsx not found. Run this file inside jeebo-store."
+}
+
+Copy-Item $productsFile "$productsFile.before-cloudinary.bak" -Force
+
+@'
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown,
@@ -760,3 +776,36 @@ export default function Products() {
     </div>
   );
 }
+'@ | Set-Content -Encoding utf8 $productsFile
+
+Write-Host "Building..." -ForegroundColor Yellow
+npm run build
+
+if ($LASTEXITCODE -ne 0) {
+  throw "Build failed."
+}
+
+Write-Host "Saving to Git..." -ForegroundColor Yellow
+git add .
+try {
+  git commit -m "Add Cloudinary product image uploads"
+} catch {
+  Write-Host "No new commit or Git warning." -ForegroundColor DarkYellow
+}
+
+try {
+  git push origin main
+} catch {
+  Write-Host "Git push warning; continuing to deployment." -ForegroundColor DarkYellow
+}
+
+Write-Host "Deploying..." -ForegroundColor Yellow
+npx wrangler pages deploy dist --project-name jeebo-store --branch main
+
+if ($LASTEXITCODE -ne 0) {
+  throw "Deploy failed."
+}
+
+Write-Host ""
+Write-Host "Cloudinary upload is live." -ForegroundColor Green
+Write-Host "Open: https://jeebo-store.pages.dev/admin/products" -ForegroundColor Cyan
